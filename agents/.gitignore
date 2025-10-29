@@ -1,3 +1,6 @@
+
+SETUP.md
+
 # Python
 __pycache__/
 *.py[cod]
@@ -17,7 +20,7 @@ hyperon_env/
 
 # Environment variables
 *.env
-
+.env
 # FastAPI static and temp files
 static/*.log
 static/*.tmp
@@ -63,8 +66,3 @@ data/
 
 # Uvicorn logs
 *.log
-
-# Resources
-/resources
-scope-requirements.md
-thoughtts.md
