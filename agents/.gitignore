@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+venv/
+.env/
+.envrc
+.venv/
+agents_env/
+hyperon_env/
+**/agents_env/
+**/hyperon_env/
+
+# Environment variables
+*.env
+
+# FastAPI static and temp files
+static/*.log
+static/*.tmp
+
+# SQLite and other DBs
+*.db
+*.sqlite
+*.sqlite3
+
+# VSCode
+.vscode/
+
+# Mac and Linux system files
+.DS_Store
+Thumbs.db
+
+# Coverage and test reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Mypy
+.mypy_cache/
+
+# Pytest
+.pytest_cache/
+
+# Pylint
+pylint-report.txt
+pylint-global.txt
+
+# FAISS vector stores
+vectorstores/
+
+# Data files
+data/
+!data/.gitkeep  # Keep folder, ignore contents
+
+# Uvicorn logs
+*.log
+
+# Resources
+/resources
+scope-requirements.md
+thoughtts.md
