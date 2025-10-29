@@ -1,83 +1,172 @@
-"use client";
+'use client'
 
-import { Bot, Loader2, Send, User } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Bot, Loader2, Send, User } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { YieldTable } from '@/components/yield-table'
+
+interface YieldOpportunity {
+	protocol: string
+	token_pair?: string
+	token?: string
+	apy: number | null
+	tvl: number | null
+	risk_level: 'low' | 'medium' | 'high'
+	source: string
+	last_updated: string
+}
 
 interface Message {
-	id: string;
-	role: "user" | "assistant";
-	content: string;
-	timestamp: Date;
+	id: string
+	role: 'user' | 'assistant'
+	content: string
+	timestamp: Date
+	yieldData?: YieldOpportunity[]
 }
 
 export default function ChatPage() {
-	const [messages, setMessages] = useState<Message[]>([]);
-	const [input, setInput] = useState("");
-	const [isLoading, setIsLoading] = useState(false);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [messages, setMessages] = useState<Message[]>([])
+	const [input, setInput] = useState('')
+	const [isLoading, setIsLoading] = useState(false)
+	const messagesEndRef = useRef<HTMLDivElement>(null)
 
 	const scrollToBottom = () => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-	};
+		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+	}
+
+	// Parse yield data from agent response
+	const parseYieldData = (content: string): YieldOpportunity[] => {
+		const yieldData: YieldOpportunity[] = []
+
+		// Look for yield data patterns in the response
+		const lines = content.split('\n')
+		let currentOpportunity: Partial<YieldOpportunity> = {}
+
+		for (const line of lines) {
+			// Match protocol names
+			if (
+				line.includes('**') &&
+				(line.includes('Orca') ||
+					line.includes('Raydium') ||
+					line.includes('Kamino') ||
+					line.includes('Marginfi') ||
+					line.includes('Solend'))
+			) {
+				const protocolMatch = line.match(/\*\*(.*?)\*\*/)
+				if (protocolMatch) {
+					currentOpportunity.protocol = protocolMatch[1]
+				}
+			}
+
+			// Match APY
+			const apyMatch = line.match(/APY:\s*\*\*([0-9.]+)%/)
+			if (apyMatch) {
+				currentOpportunity.apy = parseFloat(apyMatch[1])
+			}
+
+			// Match TVL
+			const tvlMatch = line.match(/TVL:\s*\$?([0-9,]+)/)
+			if (tvlMatch) {
+				currentOpportunity.tvl = parseFloat(tvlMatch[1].replace(/,/g, ''))
+			}
+
+			// Match risk level
+			const riskMatch = line.match(/Risk:\s*([A-Za-z]+)/)
+			if (riskMatch) {
+				currentOpportunity.risk_level = riskMatch[1].toLowerCase() as
+					| 'low'
+					| 'medium'
+					| 'high'
+			}
+
+			// Match source
+			const sourceMatch = line.match(/Source:\s*([A-Za-z]+)/)
+			if (sourceMatch) {
+				currentOpportunity.source = sourceMatch[1].toLowerCase()
+			}
+
+			// If we have enough data, add to yieldData
+			if (
+				currentOpportunity.protocol &&
+				(currentOpportunity.apy !== undefined || currentOpportunity.tvl !== undefined)
+			) {
+				yieldData.push({
+					protocol: currentOpportunity.protocol,
+					token_pair: currentOpportunity.token_pair || undefined,
+					token: currentOpportunity.token || undefined,
+					apy: currentOpportunity.apy || null,
+					tvl: currentOpportunity.tvl || null,
+					risk_level: currentOpportunity.risk_level || 'medium',
+					source: currentOpportunity.source || 'unknown',
+					last_updated: new Date().toISOString(),
+				})
+				currentOpportunity = {}
+			}
+		}
+
+		return yieldData
+	}
 
 	useEffect(() => {
-		scrollToBottom();
-	}, [messages]);
+		scrollToBottom()
+	}, [messages])
 
 	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+		e.preventDefault()
 
-		if (!input.trim() || isLoading) return;
+		if (!input.trim() || isLoading) return
 
 		const userMessage: Message = {
 			id: Date.now().toString(),
-			role: "user",
+			role: 'user',
 			content: input.trim(),
 			timestamp: new Date(),
-		};
+		}
 
-		setMessages((prev) => [...prev, userMessage]);
-		setInput("");
-		setIsLoading(true);
+		setMessages((prev) => [...prev, userMessage])
+		setInput('')
+		setIsLoading(true)
 
 		try {
-			const response = await fetch("/api/chat", {
-				method: "POST",
+			const response = await fetch('/api/chat', {
+				method: 'POST',
 				headers: {
-					"Content-Type": "application/json",
+					'Content-Type': 'application/json',
 				},
 				body: JSON.stringify({ message: userMessage.content }),
-			});
+			})
 
-			const data = await response.json();
+			const data = await response.json()
+			const responseContent = data.response || 'Sorry, I encountered an error.'
+			const yieldData = parseYieldData(responseContent)
 
 			const assistantMessage: Message = {
 				id: (Date.now() + 1).toString(),
-				role: "assistant",
-				content: data.response || "Sorry, I encountered an error.",
+				role: 'assistant',
+				content: responseContent,
 				timestamp: new Date(),
-			};
+				yieldData: yieldData.length > 0 ? yieldData : undefined,
+			}
 
-			setMessages((prev) => [...prev, assistantMessage]);
+			setMessages((prev) => [...prev, assistantMessage])
 		} catch (error) {
-			console.error("Error:", error);
+			console.error('Error:', error)
 			const errorMessage: Message = {
 				id: (Date.now() + 1).toString(),
-				role: "assistant",
-				content: "Sorry, I encountered an error while processing your request.",
+				role: 'assistant',
+				content: 'Sorry, I encountered an error while processing your request.',
 				timestamp: new Date(),
-			};
-			setMessages((prev) => [...prev, errorMessage]);
+			}
+			setMessages((prev) => [...prev, errorMessage])
 		} finally {
-			setIsLoading(false);
+			setIsLoading(false)
 		}
-	};
+	}
 
 	return (
 		<div className="flex flex-col h-screen bg-background">
@@ -125,74 +214,104 @@ export default function ChatPage() {
 						messages.map((message) => (
 							<div
 								key={message.id}
-								className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+								className={`flex ${
+									message.role === 'user' ? 'justify-end' : 'justify-start'
+								}`}
 							>
 								<Card
 									className={`max-w-[80%] ${
-										message.role === "user" ? "bg-primary text-primary-foreground" : "bg-card"
+										message.role === 'user'
+											? 'bg-primary text-primary-foreground'
+											: 'bg-card'
 									}`}
 								>
 									<CardContent className="p-4">
 										<div className="flex items-start gap-3">
-											{message.role === "assistant" && (
+											{message.role === 'assistant' && (
 												<div className="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-primary to-primary/80 rounded-full flex items-center justify-center">
 													<Bot className="w-5 h-5 text-primary-foreground" />
 												</div>
 											)}
-											{message.role === "user" && (
+											{message.role === 'user' && (
 												<div className="flex-shrink-0 w-8 h-8 bg-primary-foreground/20 rounded-full flex items-center justify-center">
 													<User className="w-5 h-5 text-primary-foreground" />
 												</div>
 											)}
 											<div className="flex-1">
-												{message.role === "assistant" ? (
-													<div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-img:rounded-lg prose-img:shadow-md">
-														<ReactMarkdown
-															remarkPlugins={[remarkGfm]}
-															components={{
-																img: ({ node, ...props }) => (
-																	<img
-																		{...props}
-																		className="max-w-full h-auto rounded-lg shadow-md my-4"
-																		loading="lazy"
-																		alt={props.alt || "Image"}
-																	/>
-																),
-																a: ({ node, ...props }) => (
-																	<a
-																		{...props}
-																		target="_blank"
-																		rel="noopener noreferrer"
-																		className="text-primary hover:text-primary/80 underline"
-																	/>
-																),
-																code: ({ node, className, children, ...props }) => {
-																	const isInline = !className?.includes("language-");
-																	return isInline ? (
-																		<code
-																			className="bg-muted px-1.5 py-0.5 rounded text-sm"
+												{message.role === 'assistant' ? (
+													<div className="space-y-4">
+														<div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 prose-headings:my-3 prose-img:rounded-lg prose-img:shadow-md">
+															<ReactMarkdown
+																remarkPlugins={[remarkGfm]}
+																components={{
+																	img: ({ node, ...props }) => (
+																		<img
 																			{...props}
-																		>
-																			{children}
-																		</code>
-																	) : (
-																		<code
-																			className={`block bg-muted p-3 rounded-lg overflow-x-auto ${
-																				className || ""
-																			}`}
+																			className="max-w-full h-auto rounded-lg shadow-md my-4"
+																			loading="lazy"
+																			alt={
+																				props.alt || 'Image'
+																			}
+																		/>
+																	),
+																	a: ({ node, ...props }) => (
+																		<a
 																			{...props}
-																		>
-																			{children}
-																		</code>
-																	);
-																},
-															}}
-														>
-															{message.content}
-														</ReactMarkdown>
+																			target="_blank"
+																			rel="noopener noreferrer"
+																			className="text-primary hover:text-primary/80 underline"
+																		/>
+																	),
+																	code: ({
+																		node,
+																		className,
+																		children,
+																		...props
+																	}) => {
+																		const isInline =
+																			!className?.includes(
+																				'language-'
+																			)
+																		return isInline ? (
+																			<code
+																				className="bg-muted px-1.5 py-0.5 rounded text-sm"
+																				{...props}
+																			>
+																				{children}
+																			</code>
+																		) : (
+																			<code
+																				className={`block bg-muted p-3 rounded-lg overflow-x-auto ${
+																					className || ''
+																				}`}
+																				{...props}
+																			>
+																				{children}
+																			</code>
+																		)
+																	},
+																}}
+															>
+																{message.content}
+															</ReactMarkdown>
+														</div>
+
+														{/* Yield Table if data is available */}
+														{message.yieldData &&
+															message.yieldData.length > 0 && (
+																<YieldTable
+																	opportunities={
+																		message.yieldData
+																	}
+																	title="Yield Analysis Results"
+																	className="w-full"
+																/>
+															)}
 													</div>
 												) : (
-													<p className="whitespace-pre-wrap break-words">{message.content}</p>
+													<p className="whitespace-pre-wrap break-words">
+														{message.content}
+													</p>
 												)}
 											</div>
 										</div>
@@ -244,5 +363,5 @@ export default function ChatPage() {
 				</div>
 			</div>
 		</div>
-	);
+	)
 }

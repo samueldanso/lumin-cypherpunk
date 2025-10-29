@@ -1,12 +1,13 @@
 # LuminYield Agents Requirements
-# Core uAgents framework
-uagents>=0.22.9
-uagents-core>=0.3.9
-# HTTP requests for API calls
-requests>=2.31.0
+# Core uAgents framework (pinned for compatibility)
+uagents==0.22.5
+uagents-core==0.3.9
+# HTTP clients
+requests==2.32.3
+httpx==0.27.2
 
 # Environment variable management
-python-dotenv>=1.0.0
+python-dotenv==1.0.0
 
 #Hyperon Experimental
-hyperon @ git+https://github.com/trueagi-io/hyperon-experimental.git#subdirectory=python
+#hyperon @ git+https://github.com/trueagi-io/hyperon-experimental.git#subdirectory=python

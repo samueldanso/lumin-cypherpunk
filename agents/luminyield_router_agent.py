@@ -23,11 +23,20 @@ from uagents_core.contrib.protocols.chat import (
     EndSessionContent,
 )
 
-import requests
+import httpx
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+# ASI:One API configuration (supports multiple env var names)
+# Prefer ASI1_API_KEY (per docs), fall back to ASI_ONE_API_KEY
+ASI_ONE_API_KEY = (
+    os.getenv("ASI1_API_KEY")
+    or os.getenv("ASI_ONE_API_KEY")
+    or os.getenv("ASI_ONE_KEY")
+)
+ASI_ONE_API_URL = os.getenv("ASI_ONE_API_URL", "https://api.asi1.ai/v1")
 
 # Yield query classification categories
 class YieldQueryType(str, Enum):
@@ -49,7 +58,7 @@ luminyield_router = Agent(
 ANALYZER_AGENT_ADDRESS = "agent1qfkvecvpxw9vslza792mlwqrsl460d3n86dddvf9jpmqja6hs4xyqt9pzdp"
 STRATEGY_AGENT_ADDRESS = "agent1q0qug02e3pg2gak5tlfw6xrslypqlhd4k5k8mqtedpfntd4zse9dj307ec3"
 
-# Chat protocol for agent communication
+# Standard Chat Protocol for ASI:One compatibility
 chat = Protocol(spec=chat_protocol_spec)
 
 # Session tracking for multi-agent workflows
@@ -109,23 +118,28 @@ Query: {query}
 Respond with ONLY the category name (yield_analysis, yield_comparison, strategy_recommendation, risk_assessment, or out_of_scope).
 """
 
-        response = requests.post(
-            f"{ASI_ONE_API_URL}/classify",
-            headers={
-                "Authorization": f"Bearer {ASI_ONE_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "prompt": classification_prompt,
-                "temperature": 0.1,
-                "max_tokens": 50
-            },
-            timeout=10
-        )
+        async with httpx.AsyncClient(timeout=12) as client:
+            response = await client.post(
+                f"{ASI_ONE_API_URL}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {ASI_ONE_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": "asi1-mini",
+                    "messages": [
+                        {"role": "system", "content": "Classify Solana DeFi yield queries strictly into: yield_analysis, yield_comparison, strategy_recommendation, risk_assessment, out_of_scope. Reply with one token only."},
+                        {"role": "user", "content": classification_prompt},
+                    ],
+                    "temperature": 0.0,
+                    "max_tokens": 10,
+                },
+            )
 
         if response.status_code == 200:
-            result = response.json()
-            classification = result.get("classification", "").strip().lower()
+            data = response.json()
+            choice = (data.get("choices") or [{}])[0]
+            classification = ((choice.get("message") or {}).get("content") or "").strip().lower()
 
             # Map to YieldQueryType enum
             if classification in ["yield_analysis", "yield analysis"]:
@@ -216,22 +230,11 @@ async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
             await ctx.send(sender, capabilities_msg)
 
         elif isinstance(item, TextContent):
+            # Handle text queries - this is the main functionality
             query = item.text.strip()
             if not query:
                 continue
-
             ctx.logger.info(f"📨 Received query from {sender}: {query[:100]}...")
-
-            # Generate session ID
-            session_id = str(uuid4())
-
-            # Classify the query
-            query_type = await classify_yield_query(query, ctx)
-            ctx.logger.info(f"🏷️ Query classified as: {query_type.value}")
-
-        elif isinstance(item, TextContent):
-            # Handle text queries - this is the main functionality
-            query = item.text
             ctx.logger.info(f"🔍 Processing query: {query[:100]}...")
 
             # Generate session ID for tracking
@@ -312,8 +315,29 @@ Please ask about Solana DeFi yields, and I'll route your query to the appropriat
             ctx.logger.info(f"🏁 Session ended with {sender}")
             # Clean up session data
             if sender in agent_to_user_mapping.values():
-                # Remove any mappings for this user
-                agent_to_user_mapping = {k: v for k, v in agent_to_user_mapping.items() if v != sender}
+                # Remove any mappings for this user (mutate dict safely)
+                keys_to_delete = [k for k, v in agent_to_user_mapping.items() if v == sender]
+                for k in keys_to_delete:
+                    try:
+                        del agent_to_user_mapping[k]
+                    except KeyError:
+                        pass
+
+        # If a specialized agent responds with TextContent, forward it to the original user
+        # Note: This catches messages where 'sender' is one of the specialized agents
+        # and forwards content to the mapped user address.
+        if isinstance(item, TextContent) and sender in [ANALYZER_AGENT_ADDRESS, STRATEGY_AGENT_ADDRESS]:
+            user_addr = agent_to_user_mapping.get(sender)
+            if not user_addr:
+                ctx.logger.warning(f"No mapped user for response from {sender}")
+            else:
+                ctx.logger.info(f"🔁 Forwarding response from {sender} to user {user_addr}")
+                # Preserve any routing metadata if present
+                fwd_msg = create_text_message(item.text, {
+                    "forwarded_from": sender,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+                await ctx.send(user_addr, fwd_msg)
 
 @chat.on_message(ChatAcknowledgement)
 async def handle_acknowledgement(ctx: Context, sender: str, msg: ChatAcknowledgement):
