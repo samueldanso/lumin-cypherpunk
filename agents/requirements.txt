@@ -1,6 +1,6 @@
 # LuminYield Agents Requirements
-# Core uAgents framework (pinned for compatibility)
-uagents==0.22.5
+# Core uAgents framework (pinned for Agentverse compatibility)
+uagents==0.22.9
 uagents-core==0.3.9
 # HTTP clients
 requests==2.32.3

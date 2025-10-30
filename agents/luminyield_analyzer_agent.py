@@ -163,12 +163,14 @@ async def fetch_raydium_yields(ctx: Context) -> List[Dict[str, Any]]:
             response = await client.get("https://api.raydium.io/v2/sdk/liquidity/mainnet.json")
 
         if response.status_code == 200:
-            pools_data = response.json()
-            ctx.logger.info(f"✅ Retrieved Raydium pools data")
+            data = response.json()
+            # Keep only the small slice we need to reduce memory footprint
+            official_pools = (data.get("official") or [])[:20]
+            ctx.logger.info("✅ Retrieved Raydium pools data (trimmed)")
 
-            # Format Raydium pool data
+            # Format Raydium pool data (trimmed)
             yield_opportunities = []
-            for pool in pools_data.get("official", [])[:20]:  # Limit for demo
+            for pool in official_pools:
                 token_a = pool.get("baseMint", "")
                 token_b = pool.get("quoteMint", "")
                 apy = pool.get("apy") or pool.get("apr")
@@ -185,6 +187,9 @@ async def fetch_raydium_yields(ctx: Context) -> List[Dict[str, Any]]:
                     "last_updated": datetime.now(timezone.utc).isoformat(),
                 })
 
+            # Free references to large objects ASAP
+            del data
+            del official_pools
             return yield_opportunities
         else:
             ctx.logger.warning(f"Raydium API returned status {response.status_code}")

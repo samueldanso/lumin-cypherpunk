@@ -218,6 +218,22 @@ async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
         acknowledged_msg_id=msg.msg_id
     ))
 
+    # If a specialized agent responds with TextContent, forward it to the mapped user immediately
+    # to avoid re-classifying agent replies.
+    for item in msg.content:
+        if isinstance(item, TextContent) and sender in [ANALYZER_AGENT_ADDRESS, STRATEGY_AGENT_ADDRESS]:
+            user_addr = agent_to_user_mapping.get(sender)
+            if not user_addr:
+                ctx.logger.warning(f"No mapped user for response from {sender}")
+                return
+            ctx.logger.info(f"🔁 Forwarding response from {sender} to user {user_addr}")
+            fwd_msg = create_text_message(item.text, {
+                "forwarded_from": sender,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            await ctx.send(user_addr, fwd_msg)
+            return
+
     # Process message content
     for item in msg.content:
         if isinstance(item, StartSessionContent):
@@ -323,21 +339,7 @@ Please ask about Solana DeFi yields, and I'll route your query to the appropriat
                     except KeyError:
                         pass
 
-        # If a specialized agent responds with TextContent, forward it to the original user
-        # Note: This catches messages where 'sender' is one of the specialized agents
-        # and forwards content to the mapped user address.
-        if isinstance(item, TextContent) and sender in [ANALYZER_AGENT_ADDRESS, STRATEGY_AGENT_ADDRESS]:
-            user_addr = agent_to_user_mapping.get(sender)
-            if not user_addr:
-                ctx.logger.warning(f"No mapped user for response from {sender}")
-            else:
-                ctx.logger.info(f"🔁 Forwarding response from {sender} to user {user_addr}")
-                # Preserve any routing metadata if present
-                fwd_msg = create_text_message(item.text, {
-                    "forwarded_from": sender,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                })
-                await ctx.send(user_addr, fwd_msg)
+        # (Specialized agent forwarding handled at the top to avoid reclassification)
 
 @chat.on_message(ChatAcknowledgement)
 async def handle_acknowledgement(ctx: Context, sender: str, msg: ChatAcknowledgement):
