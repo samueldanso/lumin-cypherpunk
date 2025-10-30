@@ -1,20 +1,20 @@
-"use client";
+'use client'
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { IWeb3AuthState } from "@web3auth/modal";
-import { Web3AuthProvider } from "@web3auth/modal/react";
-import { ThemeProvider } from "next-themes";
-import type { ReactNode } from "react";
-import { useState } from "react";
-import { web3AuthContextConfig } from "@/lib/web3auth-config";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { IWeb3AuthState } from '@web3auth/modal'
+import { Web3AuthProvider } from '@web3auth/modal/react'
+import { ThemeProvider } from 'next-themes'
+import type { ReactNode } from 'react'
+import { useState } from 'react'
+import { web3AuthContextConfig } from '@/lib/web3auth-config'
 
 // IMP START - SSR
 export function Providers({
 	children,
 	web3authInitialState,
 }: {
-	children: ReactNode;
-	web3authInitialState: IWeb3AuthState | undefined;
+	children: ReactNode
+	web3authInitialState: IWeb3AuthState | undefined
 }) {
 	// IMP END - SSR
 	const [queryClient] = useState(
@@ -26,8 +26,8 @@ export function Providers({
 						refetchOnWindowFocus: false,
 					},
 				},
-			}),
-	);
+			})
+	)
 
 	return (
 		<QueryClientProvider client={queryClient}>
@@ -37,6 +37,7 @@ export function Providers({
 				<ThemeProvider
 					attribute="class"
 					defaultTheme="dark"
+					forcedTheme="dark"
 					enableSystem={false}
 					disableTransitionOnChange
 				>
@@ -44,5 +45,5 @@ export function Providers({
 				</ThemeProvider>
 			</Web3AuthProvider>
 		</QueryClientProvider>
-	);
+	)
 }
