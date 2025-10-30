@@ -21,7 +21,7 @@ LuminYield Agents is a 3-agent system for Solana DeFi yield optimization, built 
 -   Classifies queries into: `yield_analysis`, `yield_comparison`, `strategy_recommendation`, `risk_assessment`
 -   Routes to specialized agents based on intent
 -   Coordinates multi-agent workflow
--   Returns formatted responses to frontend
+-   Returns formatted responses to the frontend
 
 ---
 
@@ -36,7 +36,7 @@ LuminYield Agents is a 3-agent system for Solana DeFi yield optimization, built 
 -   Fetches APYs from Orca, Raydium, Jupiter, Kamino, Marginfi, Solend
 -   Normalizes and ranks yields by net APY (fees considered)
 -   Includes TVL/liquidity and risk assessments
--   Returns comparison data for Strategy Agent
+-   Returns comparison data for the Strategy Agent
 
 ---
 
@@ -66,7 +66,7 @@ Frontend → Router Agent → Analyzer Agent → Strategy Agent → Response
 -   Stage 1 (Routing): Router classifies query → routes to appropriate agent
 -   Stage 2 (Analysis): Analyzer fetches yield data from Solana protocols
 -   Stage 3 (Strategy): Strategy generates MeTTa reasoning + recommendations
--   Stage 4 (Response): Router formats and returns result to frontend
+-   Stage 4 (Response): Router formats and returns result to the frontend
 
 **Key Design:** Agents are pure AI reasoning — no persistent storage, all real-time data.
 
@@ -87,7 +87,7 @@ cd agents
 
 # Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -97,10 +97,9 @@ pip install -r requirements.txt
 
 Environment variables are configured in `.env`:
 
--   Agent ports (9000, 9001, 9002)
--   Agent names and seeds
--   Agent addresses (for inter-agent communication)
--   Optional ASI:One API key
+### **ASI API Key**
+
+Set your ASI API Key in the `.env` file.
 
 ### **Running the Agents**
 
@@ -126,20 +125,13 @@ Each agent will log its address and status on startup.
 ### **Environment Variables**
 
 ```bash
-# Agent Configuration
-ROUTER_PORT=9000
-ANALYZER_PORT=9001
-STRATEGY_PORT=9002
-
-# Agent Addresses (populated after deployment)
-ANALYZER_AGENT_ADDRESS=agent1q...
-STRATEGY_AGENT_ADDRESS=agent1q...
-
-# Optional: Enhanced reasoning
+# ASI API Key
 ASI_ONE_API_KEY=your-key-here
 
-# Solana RPC
-SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+# Agent Addresses (populated after deployment)
+ROUTER_AGENT_ADDRESS=agent1qtwtnak22nv2v4fary5yju4m0l3pny3xxqhldu3wfxu2umyghw6es2wsyfq
+ANALYZER_AGENT_ADDRESS=agent1qfkvecvpxw9vslza792mlwqrsl460d3n86dddvf9jpmqja6hs4xyqt9pzdp
+STRATEGY_AGENT_ADDRESS=agent1q0qug02e3pg2gak5tlfw6xrslypqlhd4k5k8mqtedpfntd4zse9dj307ec3
 ```
 
 ---
@@ -182,7 +174,7 @@ SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
 ### **Chat Protocol Compliance**
 
 -   Respond to `ChatMessage` format
--   Support `StartSessionContent`/`EndSessionContent`
+-   Support `StartSessionContent` / `EndSessionContent`
 -   Provide `MetadataContent` with capabilities
 -   Follow ACK → Response → ACK pattern
 
@@ -213,35 +205,18 @@ USER → Router Agent (classifies as strategy_recommendation)
 
 ---
 
-## 🚨 Important Notes
-
-### **Current Implementation**
-
--   Uses real Solana API integration where available
--   Mock data fallback for demonstrations
--   All financial advice disclaimers apply
-
-### **Production Considerations**
-
--   Implement proper error handling for API failures
--   Add rate limiting for external API calls
--   Include comprehensive logging and monitoring
--   Add security measures for production deployment
-
----
-
 ## 📝 Troubleshooting
 
 ### **Common Issues**
 
 1. **"Agent mailbox not found"**
 
-    - Normal warning - create mailbox via Inspector URL
+    - Normal warning — create mailbox via Inspector URL
     - Agents still work for local testing
 
 2. **"Insufficient funds"**
 
-    - Normal for testnet - agents work without Almanac registration
+    - Normal for testnet — agents work without Almanac registration
     - Registration is optional for local development
 
 3. **Import errors**
@@ -263,9 +238,6 @@ USER → Router Agent (classifies as strategy_recommendation)
 -   `luminyield_strategy_agent.py` - Strategy Agent implementation
 -   `requirements.txt` - Python dependencies
 -   `.env` - Environment configuration
--   `SETUP.md` - Detailed setup guide
-
----
 
 ## 🔗 References
 

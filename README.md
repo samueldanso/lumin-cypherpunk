@@ -103,8 +103,8 @@ Built for DeFi users, yield farmers, and anyone looking to maximize returns on S
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/samueldanso/lumin-cypherpunk.git
-cd lumin-cypherpunk
+git clone https://github.com/samueldanso/lumin-yield-cypherpunk.git
+cd lumin-yield-cypherpunk
 
 # 2. Install backend dependencies
 cd agents
@@ -118,6 +118,16 @@ npm install
 
 4. Environment setup
  Create .env file in agents/ directory
+ cp .env-exaple env
+
+ # ASI API Key
+`ASI_ONE_API_KEY`=your_asi_api_key
+
+# Agent Addresses (populated after deployment)
+ROUTER_AGENT_ADDRESS=agent1qtwtnak22nv2v4fary5yju4m0l3pny3xxqhldu3wfxu2umyghw6es2wsyfq
+ANALYZER_AGENT_ADDRESS=agent1qfkvecvpxw9vslza792mlwqrsl460d3n86dddvf9jpmqja6hs4xyqt9pzdp
+STRATEGY_AGENT_ADDRESS=agent1q0qug02e3pg2gak5tlfw6xrslypqlhd4k5k8mqtedpfntd4zse9dj307ec3
+
 ```
 
 ### **Running the System**
