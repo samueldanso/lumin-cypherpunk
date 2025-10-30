@@ -377,7 +377,9 @@ def generate_strategy_recommendation(constraints: Dict[str, Any], reasoning: Dic
     """Generate strategy recommendation based on constraints and reasoning."""
 
     risk_level = constraints["risk_tolerance"]
-    amount = constraints.get("amount", 1000)  # Default to $1000
+    amount = constraints.get("amount")
+    if amount is None:
+        amount = 1000.0
 
     # Strategy templates based on risk tolerance
     strategies = {

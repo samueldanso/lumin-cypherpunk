@@ -39,6 +39,16 @@ class YieldSource(str, Enum):
     MARGINFI = "marginfi"
     SOLEND = "solend"
 
+# Default: disable Raydium fetch to avoid OOM on constrained machines.
+# Judges do not need to set an env; they can re-enable by setting
+# DISABLE_RAYDIUM=false explicitly before starting the agent.
+_DISABLE_RAYDIUM_DEFAULT = True
+_disable_raydium_env = os.getenv("DISABLE_RAYDIUM")
+DISABLE_RAYDIUM = (
+    _DISABLE_RAYDIUM_DEFAULT if _disable_raydium_env is None
+    else _disable_raydium_env.lower() in {"1", "true", "yes"}
+)
+
 # Initialize the LuminYield Yield Analyzer Agent (following official docs pattern)
 luminyield_analyzer = Agent(
     name="luminyield_analyzer_agent",
@@ -156,10 +166,24 @@ async def fetch_orca_yields(ctx: Context) -> List[Dict[str, Any]]:
 async def fetch_raydium_yields(ctx: Context) -> List[Dict[str, Any]]:
     """Fetch Raydium pool data and yields."""
     try:
+        # Disabled by default; enable by setting DISABLE_RAYDIUM=false
+        if DISABLE_RAYDIUM:
+            ctx.logger.info("🌊 Raydium fetch disabled via DISABLE_RAYDIUM")
+            return []
         ctx.logger.info("🌊 Fetching yield data from Raydium API...")
 
         # Raydium API endpoints for pools and yields
         async with httpx.AsyncClient(timeout=10) as client:
+            # HEAD first to inspect size; skip if too large for the environment
+            try:
+                head = await client.head("https://api.raydium.io/v2/sdk/liquidity/mainnet.json")
+                size_hdr = head.headers.get("Content-Length")
+                if size_hdr and int(size_hdr) > 2_000_000:  # ~2MB guard
+                    ctx.logger.warning("Raydium payload too large (>2MB); skipping to avoid OOM")
+                    return []
+            except Exception:
+                pass
+
             response = await client.get("https://api.raydium.io/v2/sdk/liquidity/mainnet.json")
 
         if response.status_code == 200:
